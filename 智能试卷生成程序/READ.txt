@@ -12,3 +12,152 @@
 修改时间 ：2025/4/1
 内容：增加了生成试卷优先级算法，通过时间衰减因子，为不同题目赋予优先级。
 增加了，掌握题目的标记，用户可以标记自己掌握的题目，方便生成试卷时选择。
+版本二：2025/4/3
+目标：让程序更稳定、易用
+1.数据存储升级
+技术：SQLsever
+# 使用SQLAlchemy操作数据库
+from sqlalchemy import create_engine, Column, Integer, String, JSON
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
+class Question(Base):
+    __tablename__ = 'questions'
+    id = Column(Integer, primary_key=True)
+    content = Column(String)
+    tags = Column(JSON)  # 存储为JSON数组
+    error_count = Column(Integer)
+
+# 初始化数据库
+engine = create_engine('sqlite:///questions.db')
+Base.metadata.create_all(engine)
+2.用户界面优化
+技术：Tkinter（Python内置GUI）
+功能：可视化录入表单
+实时展示错题统计图表
+3.智能算法增强
+技术：加入遗忘曲线（艾宾浩斯模型）
+def calculate_priority(question):
+    # 加入遗忘曲线（艾宾浩斯模型）
+    days = (datetime.now() - question.last_tested).days
+    forgetting_factor = 0.56 * (0.94 ** days) + 0.06
+    return question.error_count * forgetting_factor + question.difficulty * 0.5
+版本三 ：2025/4/4
+目标：让程序更加实用
+一、统计图标题显示问题修复
+# 在文件开头添加字体配置
+import matplotlib.pyplot as plt
+plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置中文字体
+plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
+
+# 修改原update_stats方法中的图表创建部分
+ax1.set_title("知识点分布", fontsize=12, fontweight='bold')  # 显式设置字体属性
+
+二、支持图片题目输入与显示
+1.数据库模型修改
+class Question(Base):
+    # 新增图片路径字段
+    image_path = Column(String(500))  # 图片存储路径
+
+# 执行数据库迁移（需先安装alembic）
+# alembic revision --autogenerate -m "add image_path"
+# alembic upgrade head
+2.GUI界面改进
+def create_question_tab(self):
+    # 在表单中添加图片上传组件
+    ttk.Label(form_frame, text="题目图片:").grid(row=5, column=0, sticky='w')
+    self.image_path_var = tk.StringVar()
+    ttk.Entry(form_frame, textvariable=self.image_path_var, width=50).grid(row=5, column=1)
+    ttk.Button(form_frame, text="上传图片", command=self.upload_image).grid(row=5, column=2)
+
+    # 添加图片预览区域
+    self.image_preview = ttk.Label(form_frame)
+    self.image_preview.grid(row=6, column=1, pady=5)
+
+def upload_image(self):
+    file_path = filedialog.askopenfilename(filetypes=[("图片文件", "*.jpg *.png")])
+    if file_path:
+        # 保存到指定目录（需创建uploads文件夹）
+        save_path = f"uploads/{os.path.basename(file_path)}"
+        shutil.copy(file_path, save_path)
+
+        # 显示预览
+        img = Image.open(file_path)
+        img.thumbnail((200, 200))
+        photo = ImageTk.PhotoImage(img)
+        self.image_preview.config(image=photo)
+        self.image_preview.image = photo
+
+        self.image_path_var.set(save_path)
+ 3.word导出支持图片
+ def export_to_word(self):
+    from docx.shared import Cm
+
+    for q in self.current_paper:
+        if q.image_path:
+            doc.add_picture(q.image_path, width=Cm(10))  # 添加图片并设置宽度
+
+ 三、分科目管理功能实现
+ 1.数据库模型扩展
+ class Subject(Base):
+    __tablename__ = 'subjects'
+    id = Column(Integer, primary_key=True)
+    name = Column(String(50), unique=True)
+
+class Question(Base):
+    # 新增科目关联
+    subject_id = Column(Integer, ForeignKey('subjects.id'))
+    subject = relationship("Subject")
+
+# 科目初始化数据（运行一次）
+def init_subjects():
+    session = Session()
+    default_subjects = ["数学", "物理", "计算机"]
+    for name in default_subjects:
+        if not session.query(Subject).filter_by(name=name).first():
+            session.add(Subject(name=name))
+    session.commit()
+2.GUI界面改进
+def create_subject_tab(self):
+    # 新增标签页
+    self.tab4 = ttk.Frame(self.notebook)
+    self.notebook.add(self.tab4, text="科目管理")
+
+    # 科目列表
+    self.subject_tree = ttk.Treeview(self.tab4, columns=("id", "name"), show="headings")
+    self.subject_tree.pack(fill=tk.BOTH, expand=True)
+
+    # 操作按钮
+    ttk.Button(self.tab4, text="新增科目", command=self.add_subject).pack(side=tk.LEFT)
+
+def add_subject(self):
+    name = simpledialog.askstring("新增科目", "请输入科目名称:")
+    if name:
+        session = Session()
+        try:
+            session.add(Subject(name=name))
+            session.commit()
+            self.load_subjects()
+3.错题录入界面改进
+def create_question_tab(self):
+    # 添加科目选择
+    ttk.Label(form_frame, text="所属科目:").grid(row=4, column=0, sticky='w')
+    self.subject_combobox = ttk.Combobox(form_frame)
+    self.subject_combobox.grid(row=4, column=1)
+
+    # 加载科目数据
+    self.load_subjects()
+
+def load_subjects(self):
+    session = Session()
+    subjects = session.query(Subject).all()
+    self.subject_combobox['values'] = [s.name for s in subjects]
+4.统计分析按科目筛选
+def update_stats(self):
+    # 获取当前选中科目
+    selected_subject = self.subject_combobox.get()
+
+    query = session.query(Question)
+    if selected_subject:
+        query = query.join(Subject).filter(Subject.name == selected_subject)
+

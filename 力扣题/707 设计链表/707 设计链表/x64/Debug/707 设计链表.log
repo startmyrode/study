@@ -1,0 +1,5 @@
+﻿  3.21.c
+  C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Tools\MSVC\14.39.33519\include\yvals_core.h(27): STL1003: Unexpected compiler, expected C++ compiler.
+C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Tools\MSVC\14.39.33519\include\yvals_core.h(28,1): error C1189: #error:  Error in C++ Standard Library usage
+  (编译源文件“3.21.c”)
+  
